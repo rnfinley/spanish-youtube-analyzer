@@ -1,0 +1,94 @@
+# Spanish YouTube Word Analyzer Project
+
+## Project Overview
+
+Building a web-based tool to help learn Spanish by extracting and analyzing word frequency from YouTube videos.
+Target user: Someone learning Spanish who wants to understand which words appear most frequently in Spanish content.
+
+## Tech Stack
+
+- Backend: Python 3, Flask web framework
+- YouTube API: youtube-transcript-api library
+- Frontend: HTML5, CSS3, vanilla JavaScript
+- Styling: Custom CSS with responsive design
+- Python Environment: venv (virtual environment)
+
+## Current Project Structure
+
+spanish-youtube-tool/
+├── app.py # Flask backend with transcript fetching
+├── requirements.txt # Python dependencies
+├── templates/
+│ └── index.html # Main UI with word frequency display
+├── static/
+│ └── style.css # Styling with red Spanish theme
+└── venv/ # Virtual environment (not tracked)
+
+## Current Features (Working)
+
+- Extract YouTube video ID from various URL formats
+- Fetch Spanish transcripts (handles multiple Spanish variants: es, es-419, es-ES, etc.)
+- Count word frequency with Spanish character support (á, é, í, ó, ú, ñ, ü)
+- Display top 100 most frequent words in a responsive grid
+- Show total unique word count
+- Error handling with helpful messages about available languages
+- Loading spinner during processing
+
+## Recent Fixes
+
+- Fixed transcript fetching using .list_transcripts() and .fetch() pattern
+- Improved error messages to show available languages when Spanish not found
+- Added support for auto-generated transcripts
+
+## Code Style Preferences
+
+- Clear, descriptive function names
+- Comprehensive error handling with user-friendly messages
+- Comments for complex logic
+- Type hints where helpful (optional)
+- Follow PEP 8 Python style guide
+- Modern ES6+ JavaScript (async/await, arrow functions)
+- Semantic HTML5
+- Accessible UI with proper contrast and labeling
+
+## Known Issues/Limitations
+
+- Only works with videos that have Spanish captions/transcripts
+- Requires manual URL input (no playlist support yet)
+- Basic word extraction (doesn't handle phrases or context)
+
+## Planned Features (Not Yet Implemented)
+
+1. Export word list to CSV/Anki format
+2. Filter common words (articles, prepositions)
+3. Show words in context (display sentence where word appears)
+4. Support for multiple videos/playlist analysis
+5. Word difficulty levels (beginner/intermediate/advanced)
+6. Add words and phrases to a database
+7. Add pronunciation guides or translations
+8. Batch analysis of multiple videos
+
+## Development Guidelines
+
+- Test with various Spanish content (news, tutorials, vlogs)
+- Maintain responsive design for mobile learning
+- Keep the UI simple and focused on learning
+- Prioritize performance for large transcripts
+- Use semantic variable names that reflect Spanish learning context
+
+## Common Test URLs
+
+- Spanish news channels
+- Spanish learning tutorials
+- Spanish podcasts on YouTube
+- Music videos with Spanish lyrics (if captions available)
+
+## Assistance Requested
+
+When providing help, please:
+
+- Maintain the existing project structure
+- Keep the Spanish learning focus
+- Ensure mobile responsiveness
+- Test error handling with edge cases
+- Consider Spanish language peculiarities (accents, ñ, etc.)

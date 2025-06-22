@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spanish YouTube Word Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🇪🇸 Spanish YouTube Word Analyzer</h1>
+        <p class="subtitle">Extract and analyze Spanish words from YouTube videos</p>
+        
+        <div class="input-section">
+            <input type="text" 
+                   id="youtube-url" 
+                   placeholder="Paste YouTube URL here (e.g., https://www.youtube.com/watch?v=...)"
+                   class="url-input">
+            <button onclick="analyzeVideo()" class="analyze-btn">Analyze Video</button>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Extracting transcript and analyzing words...</p>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="results" class="results" style="display: none;">
+            <h2>Word Frequency Analysis</h2>
+            <p id="summary"></p>
+            <div id="word-list"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function analyzeVideo() {
+            const url = document.getElementById('youtube-url').value;
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const results = document.getElementById('results');
+            
+            // Reset display
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            results.style.display = 'none';
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    let errorHTML = `<strong>Error:</strong> ${data.error || 'Failed to analyze video'}<br>`;
+                    
+                    if (data.message) {
+                        errorHTML += `<br>${data.message}`;
+                    }
+                    
+                    if (data.available_languages) {
+                        errorHTML += '<br><br><strong>Available languages:</strong><ul>';
+                        data.available_languages.forEach(lang => {
+                            errorHTML += `<li>${lang.language} (${lang.language_code})${lang.is_generated ? ' - Auto-generated' : ''}</li>`;
+                        });
+                        errorHTML += '</ul>';
+                    }
+                    
+                    if (data.details) {
+                        errorHTML += `<br><small>Technical details: ${data.details}</small>`;
+                    }
+                    
+                    throw new Error(errorHTML);
+                }
+                
+                displayResults(data);
+                
+            } catch (err) {
+                error.style.display = 'block';
+                error.innerHTML = err.message;
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            const summary = document.getElementById('summary');
+            const wordList = document.getElementById('word-list');
+            
+            summary.innerHTML = `Found <strong>${data.total_unique_words}</strong> unique words. Showing top 100:`;
+            
+            if (data.language_used) {
+                summary.innerHTML += `<br><small>Using transcript language: ${data.language_used}</small>`;
+            }
+            
+            let html = '<div class="word-grid">';
+            data.words.forEach(([word, count]) => {
+                html += `
+                    <div class="word-item">
+                        <span class="word">${word}</span>
+                        <span class="count">${count}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            wordList.innerHTML = html;
+            results.style.display = 'block';
+        }
+        
+        // Allow Enter key to trigger analysis
+        document.getElementById('youtube-url').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeVideo();
+            }
+        });
+    </script>
+</body>
+</html>
