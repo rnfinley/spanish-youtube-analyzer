@@ -19,6 +19,13 @@
             <button onclick="analyzeVideo()" class="analyze-btn">Analyze Video</button>
         </div>
         
+        <div class="options-container">
+            <label for="filter-stop-words">
+                <input type="checkbox" id="filter-stop-words">
+                Filter common words (e.g., "el", "de", "y")
+            </label>
+        </div>
+        
         <div id="loading" class="loading" style="display: none;">
             <div class="spinner"></div>
             <p>Extracting transcript and analyzing words...</p>
@@ -36,6 +43,7 @@
     <script>
         async function analyzeVideo() {
             const url = document.getElementById('youtube-url').value;
+            const filterStopWords = document.getElementById('filter-stop-words').checked;
             const loading = document.getElementById('loading');
             const error = document.getElementById('error');
             const results = document.getElementById('results');
@@ -51,7 +59,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ url: url })
+                    body: JSON.stringify({ url: url, filterStopWords: filterStopWords })
                 });
                 
                 const data = await response.json();

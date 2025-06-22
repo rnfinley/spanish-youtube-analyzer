@@ -5,6 +5,34 @@ import re
 
 app = Flask(__name__)
 
+SPANISH_STOP_WORDS = [
+    'de', 'la', 'que', 'el', 'en', 'y', 'a', 'los', 'del', 'se', 'un', 'por', 'con', 'no', 'una', 'su', 'para', 'es',
+    'al', 'lo', 'como', 'más', 'pero', 'sus', 'le', 'ya', 'o', 'este', 'ha', 'sí', 'porque', 'esta', 'son', 'entre',
+    'cuando', 'muy', 'sin', 'sobre', 'también', 'me', 'hasta', 'hay', 'donde', 'quien', 'desde', 'todo', 'nos',
+    'durante', 'todos', 'uno', 'les', 'ni', 'contra', 'otros', 'ese', 'eso', 'ante', 'ellos', 'esto', 'mí', 'antes',
+    'algunos', 'qué', 'nada', 'nosotros', 'mi', 'mis', 'tú', 'te', 'ti', 'tu', 'tus', 'ellas', 'vosotros', 'vosotras',
+    'os', 'mío', 'mía', 'míos', 'mías', 'tuyo', 'tuya', 'tuyos', 'tuyas', 'suyo', 'suya', 'suyos', 'suyas', 'nuestro',
+    'nuestra', 'nuestros', 'nuestras', 'vuestro', 'vuestra', 'vuestros', 'vuestras', 'esos', 'esas', 'estos', 'estas',
+    'aquel', 'aquella', 'aquellos', 'aquellas', 'estoy', 'estás', 'está', 'estamos', 'estáis', 'están', 'esté',
+    'estés', 'estemos', 'estéis', 'estén', 'estar', 'estuve', 'estuviste', 'estuvo', 'estuvimos', 'estuvisteis',
+    'estuvieron', 'estuviera', 'estuvieras', 'estuviéramos', 'estuvierais', 'estuvieran', 'estuviese', 'estuvieses',
+    'estuviésemos', 'estuvieseis', 'estuviesen', 'estando', 'estado', 'estada', 'estados', 'estadas', 'estad', 'he',
+    'has', 'ha', 'hemos', 'habéis', 'han', 'haya', 'hayas', 'hayamos', 'hayáis', 'hayan', 'habré', 'habrás', 'habrá',
+    'habremos', 'habréis', 'habrán', 'habría', 'habrías', 'habríamos', 'habríais', 'habrían', 'había', 'habías',
+    'habíamos', 'habíais', 'habían', 'hube', 'hubiste', 'hubo', 'hubimos', 'hubisteis', 'hubieron', 'hubiera',
+    'hubieras', 'hubiéramos', 'hubierais', 'hubieran', 'hubiese', 'hubieses', 'hubiésemos', 'hubieseis', 'hubiesen',
+    'habiendo', 'habido', 'habida', 'habidos', 'habidas', 'soy', 'eres', 'es', 'somos', 'sois', 'son', 'sea', 'seas',
+    'seamos', 'seáis', 'sean', 'seré', 'serás', 'será', 'seremos', 'seréis', 'serán', 'sería', 'serías', 'seríamos',
+    'seríais', 'serían', 'era', 'eras', 'éramos', 'erais', 'eran', 'fui', 'fuiste', 'fue', 'fuimos', 'fuisteis',
+    'fueron', 'fuera', 'fueras', 'fuéramos', 'fuerais', 'fueran', 'fuese', 'fueses', 'fuésemos', 'fueseis', 'fuesen',
+    'sintiendo', 'sentido', 'sentida', 'sentidos', 'sentidas', 'siente', 'sentid', 'tengo', 'tienes', 'tiene',
+    'tenemos', 'tenéis', 'tienen', 'tenga', 'tengas', 'tengamos', 'tengáis', 'tengan', 'tendré', 'tendrás', 'tendrá',
+    'tendremos', 'tendréis', 'tendrán', 'tendría', 'tendrías', 'tendríamos', 'tendríais', 'tendrían', 'tenía',
+    'tenías', 'teníamos', 'teníais', 'tenían', 'tuve', 'tuviste', 'tuvo', 'tuvimos', 'tuvisteis', 'tuvieron',
+    'tuviera', 'tuvieras', 'tuviéramos', 'tuvierais', 'tuvieran', 'tuviese', 'tuvieses', 'tuviésemos', 'tuvieseis',
+    'tuviesen', 'teniendo', 'tenido', 'tenida', 'tenidos', 'tenidas', 'tened'
+]
+
 def extract_video_id(url):
     """Extract YouTube video ID from various URL formats"""
     patterns = [
@@ -17,11 +45,14 @@ def extract_video_id(url):
             return match.group(1)
     return None
 
-def get_word_frequency(transcript_text):
+def get_word_frequency(transcript_text, filter_stop_words=False):
     """Extract words and count their frequency"""
     # Convert to lowercase and extract words (letters only)
     words = re.findall(r'\b[a-záéíóúñü]+\b', transcript_text.lower())
     
+    if filter_stop_words:
+        words = [word for word in words if word not in SPANISH_STOP_WORDS]
+
     # Count frequency
     word_freq = Counter(words)
     
@@ -39,6 +70,7 @@ def analyze_video():
     try:
         data = request.get_json()
         youtube_url = data.get('url', '')
+        filter_stop_words = data.get('filterStopWords', False)
         
         # Extract video ID
         video_id = extract_video_id(youtube_url)
@@ -88,7 +120,7 @@ def analyze_video():
         full_text = ' '.join([entry.text for entry in transcript_data])
         
         # Get word frequency
-        word_frequency = get_word_frequency(full_text)
+        word_frequency = get_word_frequency(full_text, filter_stop_words)
         
         return jsonify({
             'success': True,

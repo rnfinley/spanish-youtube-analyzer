@@ -168,3 +168,31 @@ h1 {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
 }
+
+.input-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.options-container {
+    margin-bottom: 20px;
+    text-align: left;
+    font-size: 0.9em;
+    color: #eee;
+}
+
+.options-container label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.options-container input {
+    margin-right: 8px;
+}
+
+#loading {
+    display: none;
+    text-align: center;
+}
