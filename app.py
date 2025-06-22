@@ -4,13 +4,19 @@ from collections import Counter
 import re
 import os
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
+import docx
+import PyPDF2
 
 app = Flask(__name__)
 
-# Database Configuration
+# --- Configuration ---
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'project.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'instance', 'uploads')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx'}
 
 db = SQLAlchemy(app)
 
@@ -26,6 +32,7 @@ class Word(db.Model):
 
 with app.app_context():
     os.makedirs(os.path.join(basedir, 'instance'), exist_ok=True)
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     db.create_all()
 
 SPANISH_STOP_WORDS = [
@@ -190,6 +197,82 @@ def analyze_video():
 def words_list():
     all_words = Word.query.order_by(Word.frequency.desc()).all()
     return render_template('words.html', words=all_words)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def extract_text_from_file(filepath):
+    """Extract text from txt, pdf, or docx file."""
+    text = ""
+    if filepath.endswith('.pdf'):
+        with open(filepath, 'rb') as f:
+            reader = PyPDF2.PdfReader(f)
+            for page in reader.pages:
+                text += page.extract_text()
+    elif filepath.endswith('.docx'):
+        doc = docx.Document(filepath)
+        for para in doc.paragraphs:
+            text += para.text + '\n'
+    elif filepath.endswith('.txt'):
+        with open(filepath, 'r', encoding='utf-8') as f:
+            text = f.read()
+    return text
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    if file and allowed_file(file.filename):
+        try:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            # Extract text
+            full_text = extract_text_from_file(filepath)
+            
+            # Clean up uploaded file
+            os.remove(filepath)
+            
+            if not full_text.strip():
+                return jsonify({'error': 'Could not extract text from the file.'}), 400
+
+            # Get word frequency
+            filter_stop_words = request.form.get('filterStopWords', 'false').lower() == 'true'
+            word_frequency = get_word_frequency(full_text, filter_stop_words)
+
+            # --- Save to Database ---
+            for word_text, freq in word_frequency:
+                word = Word.query.filter_by(text=word_text).first()
+                if word:
+                    word.frequency += freq
+                else:
+                    new_word = Word(text=word_text, frequency=freq)
+                    db.session.add(new_word)
+            db.session.commit()
+            # --- End of Database Logic ---
+
+            return jsonify({
+                'success': True,
+                'words': word_frequency[:100],
+                'total_unique_words': len(word_frequency),
+                'source_filename': filename
+            })
+
+        except Exception as e:
+            return jsonify({
+                'error': 'An error occurred while processing the file.',
+                'details': str(e)
+            }), 500
+
+    return jsonify({'error': 'File type not allowed'}), 400
 
 if __name__ == '__main__':
     app.run(debug=True)

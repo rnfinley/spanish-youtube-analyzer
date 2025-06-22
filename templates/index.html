@@ -17,17 +17,27 @@
 
     <main>
         <div class="container">
-            <h1>🇪🇸 Spanish YouTube Word Analyzer</h1>
-            <p class="subtitle">Extract and analyze Spanish words from YouTube videos</p>
-            
-            <div class="input-section">
-                <input type="text" 
-                       id="youtube-url" 
-                       placeholder="Paste YouTube URL here (e.g., https://www.youtube.com/watch?v=...)"
-                       class="url-input">
-                <button onclick="analyzeVideo()" class="analyze-btn">Analyze Video</button>
+            <!-- YouTube URL Analyzer -->
+            <div class="analyzer-section">
+                <h2>Analyze a YouTube Video</h2>
+                <div class="input-container">
+                    <input type="text" id="youtube-url" placeholder="Enter YouTube video URL">
+                    <button id="analyze-button">Analyze Video</button>
+                </div>
             </div>
-            
+
+            <div class="divider">OR</div>
+
+            <!-- File Analyzer -->
+            <div class="analyzer-section">
+                <h2>Analyze a Document</h2>
+                <div class="input-container">
+                    <input type="file" id="file-input" accept=".txt,.pdf,.docx">
+                    <button id="analyze-file-button">Analyze File</button>
+                </div>
+            </div>
+
+            <!-- Shared Options and Results -->
             <div class="options-container">
                 <label for="filter-stop-words">
                     <input type="checkbox" id="filter-stop-words">
@@ -40,7 +50,9 @@
                 <p>Extracting transcript and analyzing words...</p>
             </div>
             
-            <div id="error" class="error" style="display: none;"></div>
+            <div id="word-grid" class="word-grid"></div>
+
+            <div id="error-message" class="error-message"></div>
             
             <div id="results" class="results" style="display: none;">
                 <h2>Word Frequency Analysis</h2>
@@ -51,93 +63,113 @@
     </main>
     
     <script>
-        async function analyzeVideo() {
-            const url = document.getElementById('youtube-url').value;
-            const filterStopWords = document.getElementById('filter-stop-words').checked;
-            const loading = document.getElementById('loading');
-            const error = document.getElementById('error');
-            const results = document.getElementById('results');
+        document.addEventListener('DOMContentLoaded', () => {
+            const analyzeButton = document.getElementById('analyze-button');
+            const analyzeFileButton = document.getElementById('analyze-file-button');
             
-            // Reset display
-            loading.style.display = 'block';
-            error.style.display = 'none';
-            results.style.display = 'none';
-            
-            try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ url: url, filterStopWords: filterStopWords })
-                });
-                
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    let errorHTML = `<strong>Error:</strong> ${data.error || 'Failed to analyze video'}<br>`;
-                    
-                    if (data.message) {
-                        errorHTML += `<br>${data.message}`;
-                    }
-                    
-                    if (data.available_languages) {
-                        errorHTML += '<br><br><strong>Available languages:</strong><ul>';
-                        data.available_languages.forEach(lang => {
-                            errorHTML += `<li>${lang.language} (${lang.language_code})${lang.is_generated ? ' - Auto-generated' : ''}</li>`;
-                        });
-                        errorHTML += '</ul>';
-                    }
-                    
-                    if (data.details) {
-                        errorHTML += `<br><small>Technical details: ${data.details}</small>`;
-                    }
-                    
-                    throw new Error(errorHTML);
-                }
-                
-                displayResults(data);
-                
-            } catch (err) {
-                error.style.display = 'block';
-                error.innerHTML = err.message;
-            } finally {
-                loading.style.display = 'none';
-            }
-        }
-        
-        function displayResults(data) {
-            const results = document.getElementById('results');
-            const summary = document.getElementById('summary');
-            const wordList = document.getElementById('word-list');
-            
-            summary.innerHTML = `Found <strong>${data.total_unique_words}</strong> unique words. Showing top 100:`;
-            
-            if (data.language_used) {
-                summary.innerHTML += `<br><small>Using transcript language: ${data.language_used}</small>`;
-            }
-            
-            let html = '<div class="word-grid">';
-            data.words.forEach(([word, count]) => {
-                html += `
-                    <div class="word-item">
-                        <span class="word">${word}</span>
-                        <span class="count">${count}</span>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            
-            wordList.innerHTML = html;
-            results.style.display = 'block';
-        }
-        
-        // Allow Enter key to trigger analysis
-        document.getElementById('youtube-url').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                analyzeVideo();
-            }
+            analyzeButton.addEventListener('click', analyzeVideo);
+            analyzeFileButton.addEventListener('click', analyzeFile);
         });
+
+        async function analyzeVideo() {
+            const youtubeUrl = document.getElementById('youtube-url').value;
+            if (!youtubeUrl) {
+                displayError({ message: "Please enter a YouTube URL." });
+                return;
+            }
+            
+            const payload = {
+                url: youtubeUrl,
+                filterStopWords: document.getElementById('filter-stop-words').checked
+            };
+            
+            fetchAndDisplay('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        async function analyzeFile() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                displayError({ message: "Please select a file to analyze." });
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('filterStopWords', document.getElementById('filter-stop-words').checked);
+
+            fetchAndDisplay('/upload', {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        async function fetchAndDisplay(endpoint, options) {
+            const loadingDiv = document.getElementById('loading');
+            const resultsDiv = document.getElementById('results');
+            const errorDiv = document.getElementById('error-message');
+
+            loadingDiv.classList.remove('hidden');
+            resultsDiv.classList.add('hidden');
+            errorDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(endpoint, options);
+                const data = await response.json();
+
+                if (data.error) {
+                    displayError(data);
+                } else {
+                    displayResults(data);
+                }
+            } catch (err) {
+                displayError({ message: "A network error occurred.", details: err.message });
+            } finally {
+                loadingDiv.classList.add('hidden');
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const wordGrid = document.getElementById('word-grid');
+            const stats = document.getElementById('stats');
+
+            wordGrid.innerHTML = '';
+            data.words.forEach(([word, count]) => {
+                const wordItem = document.createElement('div');
+                wordItem.className = 'word-item';
+                wordItem.innerHTML = `<span class="word">${word}</span><span class="count">${count}</span>`;
+                wordGrid.appendChild(wordItem);
+            });
+
+            let sourceInfo = data.video_id 
+                ? `Language: ${data.language_used}`
+                : `Source File: ${data.source_filename}`;
+
+            stats.innerHTML = `
+                <strong>Total Unique Words:</strong> ${data.total_unique_words} <br>
+                ${sourceInfo}
+            `;
+            resultsDiv.classList.remove('hidden');
+        }
+
+        function displayError(data) {
+            const errorDiv = document.getElementById('error-message');
+            let errorMessage = `<strong>Error:</strong> ${data.message || data.error}`;
+            if (data.details) {
+                errorMessage += `<br><small>Technical details: ${data.details}</small>`;
+            }
+            if (data.available_languages) {
+                const languages = data.available_languages.map(lang => `${lang.language} (${lang.language_code})`).join(', ');
+                errorMessage += `<br><small>Available languages for this video: ${languages}</small>`;
+            }
+            errorDiv.innerHTML = errorMessage;
+        }
     </script>
 </body>
 </html>
