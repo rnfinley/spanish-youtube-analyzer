@@ -2,8 +2,31 @@ from flask import Flask, render_template, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 from collections import Counter
 import re
+import os
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
+
+# Database Configuration
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'project.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# --- Database Models ---
+class Video(db.Model):
+    id = db.Column(db.String(20), primary_key=True)
+    title = db.Column(db.String(200), nullable=True)
+
+class Word(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.String(100), unique=True, nullable=False)
+    frequency = db.Column(db.Integer, default=1, nullable=False)
+
+with app.app_context():
+    os.makedirs(os.path.join(basedir, 'instance'), exist_ok=True)
+    db.create_all()
 
 SPANISH_STOP_WORDS = [
     'de', 'la', 'que', 'el', 'en', 'y', 'a', 'los', 'del', 'se', 'un', 'por', 'con', 'no', 'una', 'su', 'para', 'es',
@@ -122,6 +145,33 @@ def analyze_video():
         # Get word frequency
         word_frequency = get_word_frequency(full_text, filter_stop_words)
         
+        # --- Save to Database ---
+        # Check if video already exists
+        video = Video.query.get(video_id)
+        if not video:
+            # Attempt to get video title (optional, might fail)
+            try:
+                # This is a bit of a workaround to get video details without a full API client
+                transcript_list = YouTubeTranscriptApi().list_transcripts(video_id)
+                video_title = transcript_list._video_title or "Title not found"
+            except Exception:
+                video_title = "Title not available"
+
+            video = Video(id=video_id, title=video_title)
+            db.session.add(video)
+
+        # Add or update words
+        for word_text, freq in word_frequency:
+            word = Word.query.filter_by(text=word_text).first()
+            if word:
+                word.frequency += freq
+            else:
+                new_word = Word(text=word_text, frequency=freq)
+                db.session.add(new_word)
+        
+        db.session.commit()
+        # --- End of Database Logic ---
+
         return jsonify({
             'success': True,
             'words': word_frequency[:100],  # Return top 100 words
@@ -135,6 +185,11 @@ def analyze_video():
             'error': 'Unexpected error occurred',
             'details': str(e)
         }), 500
+
+@app.route('/words')
+def words_list():
+    all_words = Word.query.order_by(Word.frequency.desc()).all()
+    return render_template('words.html', words=all_words)
 
 if __name__ == '__main__':
     app.run(debug=True)

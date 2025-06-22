@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Spanish Words - YouTube Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>My Spanish Word Collection</h1>
+        <nav>
+            <a href="{{ url_for('index') }}">Analyze Video</a>
+            <a href="{{ url_for('words_list') }}" class="active">My Words</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="word-list-container">
+            <h2>All Saved Words ({{ words|length }})</h2>
+            <div class="word-grid full-grid">
+                {% for word in words %}
+                    <div class="word-item">
+                        <span class="word">{{ word.text }}</span>
+                        <span class="count">{{ word.frequency }}</span>
+                    </div>
+                {% else %}
+                    <p>No words saved yet. Analyze a video to get started!</p>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Spanish YouTube Tool</p>
+    </footer>
+</body>
+</html> 
